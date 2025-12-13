@@ -1,10 +1,10 @@
-// src/config/redis.ts
-import { ConnectionOptions } from 'bullmq';
-import dotenv from 'dotenv';
+import IORedis from 'ioredis';
 
-dotenv.config();
+// Railway automatically provides REDIS_URL with password included.
+// Format: redis://:password@host:port
+const connectionString = process.env.REDIS_URL || 'redis://localhost:6379';
 
-export const redisConnection: ConnectionOptions = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-};
+export const redisConnection = new IORedis(connectionString, {
+  // ⚠️ CRITICAL: BullMQ requires this setting to be null
+  maxRetriesPerRequest: null, 
+});
