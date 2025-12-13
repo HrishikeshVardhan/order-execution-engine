@@ -37,19 +37,25 @@ server.post('/api/orders', async (request, reply) => {
   });
 
   // 3. Return ID so frontend can connect to WebSocket
+  // CHANGE: Use request.hostname to dynamically match the cloud domain/port
+  const wsHost = request.hostname; // Returns "localhost:3000" or "myapp.com"
+  
   return reply.send({ 
     success: true, 
     orderId: order.id, 
     message: 'Order queued',
-    wsUrl: `ws://localhost:3000/ws/orders/${order.id}`
+    wsUrl: `ws://${wsHost}/ws/orders/${order.id}`
   });
 });
 
 // Start Server
 const start = async () => {
   try {
-    await server.listen({ port: 3000, host: '0.0.0.0' });
-    console.log('🚀 Server running on http://localhost:3000');
+    // CHANGE: Dynamic Port for Cloud support
+    const PORT = Number(process.env.PORT) || 3000;
+    
+    await server.listen({ port: PORT, host: '0.0.0.0' });
+    console.log(`🚀 Server running on port ${PORT}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);

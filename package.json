@@ -4,8 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "build": "npx prisma generate && tsc",
+  "start": "node dist/app.js",
+  "start:worker": "node dist/lib/worker.js",
+  "dev": "ts-node src/app.ts",
+  "worker": "ts-node src/lib/worker.ts"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
