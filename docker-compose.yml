@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # Redis for BullMQ Order Queue
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes # Data persistence
+    networks:
+      - app-network
+
+  # PostgreSQL for Order History
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: order_engine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

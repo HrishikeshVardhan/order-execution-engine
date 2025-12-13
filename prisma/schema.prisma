@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Order {
+  id        String   @id @default(uuid())
+  type      String   // "MARKET", "LIMIT", "SNIPER"
+  side      String   // "BUY" or "SELL"
+  token     String   // e.g., "SOL", "USDC"
+  amount    Float
+  status    String   // "PENDING", "ROUTING", "CONFIRMED", "FAILED"
+
+  // Execution Details (Nullable because they don't exist at creation)
+  dex       String?  // "RAYDIUM" or "METEORA"
+  price     Float?   // Execution Price
+  txHash    String?  // Blockchain Transaction Hash
+  error     String?  // If failed, reason why
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
