@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useRef, useMemo } from 'react'; // ✅ REMOVED useEffect
 import axios from 'axios';
 import { 
   Activity, 
@@ -69,7 +69,6 @@ function App() {
 
   const submitSingleOrder = async () => {
     try {
-      // ✅ CHANGED: Use dynamic API_URL instead of localhost
       const res = await axios.post(`${API_URL}/api/orders`, {
         token: 'SOL',
         amount: Number(amount),
@@ -100,7 +99,6 @@ function App() {
     if (activeConnections.current.has(orderId)) return;
     activeConnections.current.add(orderId);
 
-    // ✅ CHANGED: Use dynamic WS_URL (wss:// in production)
     const ws = new WebSocket(`${WS_URL}/ws/orders/${orderId}`);
 
     ws.onopen = () => {
@@ -131,7 +129,6 @@ function App() {
 
       if (['CONFIRMED', 'FAILED'].includes(data.status)) {
         activeConnections.current.delete(orderId);
-        // Small delay to ensure UI updates before closing
         setTimeout(() => ws.close(), 1000);
       }
     };
@@ -152,8 +149,6 @@ function App() {
     return 'inactive';
   };
 
-  // ... (Render Logic remains the same, omitted for brevity)
-  // PASTE YOUR RENDER LOGIC (RETURN STATEMENT) HERE
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -253,7 +248,8 @@ function App() {
                 {/* --- 5-STEP PROGRESS BAR --- */}
                 <div className="relative flex justify-between items-center mb-4">
                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-800 -z-0"></div>
-                   {STEPS.map((step, idx) => {
+                   {/* ✅ FIXED: Removed 'idx' because it was unused */}
+                   {STEPS.map((step) => {
                      const state = getStepState(order.status, step.id);
                      return (
                        <div key={step.id} className="relative z-10 flex flex-col items-center bg-slate-900 px-2">
