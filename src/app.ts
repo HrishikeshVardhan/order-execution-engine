@@ -4,7 +4,7 @@ import cors from '@fastify/cors';
 import { orderQueue } from './lib/queue';
 import { websocketRoutes } from './lib/websocket';
 import { PrismaClient } from '@prisma/client';
-
+import './lib/worker';
 const prisma = new PrismaClient();
 const server = Fastify({ logger: true });
 
