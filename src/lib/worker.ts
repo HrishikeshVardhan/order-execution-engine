@@ -10,12 +10,13 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const prisma = new PrismaClient();
 const router = new DexRouter();
 
-// 2. Create a dedicated Redis connection for publishing WebSocket events
-// (BullMQ needs its own connection, so we create a separate one for Pub/Sub)
-const redisPublisher = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-});
+
+if (!process.env.REDIS_URL) {
+  throw new Error('REDIS_URL is not defined');
+}
+
+const redisPublisher = new Redis(process.env.REDIS_URL);
+
 
 /**
  * Helper: Publish updates to Redis.
