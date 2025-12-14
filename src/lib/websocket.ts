@@ -3,10 +3,11 @@ import { WebSocket } from 'ws';
 import Redis from 'ioredis';
 
 // Robust Redis connection
-const redisSub = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-});
+if (!process.env.REDIS_URL) {
+  throw new Error('REDIS_URL is not defined');
+}
+
+const redisSub = new Redis(process.env.REDIS_URL);
 
 interface OrderParams {
   orderId: string;
