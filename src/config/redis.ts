@@ -6,23 +6,34 @@ dotenv.config();
 
 let redisConnection: ConnectionOptions;
 
-// Scenario 1: Production (Railway provides a full URL)
+// Helper: create base connection object and optionally enable TLS
 if (process.env.REDIS_URL) {
   const url = new URL(process.env.REDIS_URL);
-  redisConnection = {
+  const port = url.port ? parseInt(url.port, 10) : 6379;
+
+  const base: ConnectionOptions = {
     host: url.hostname,
-    port: parseInt(url.port || '6379'),
+    port,
     password: url.password || undefined,
-    username: url.username || undefined, // Railway sometimes uses a username
-    maxRetriesPerRequest: null, // Required by BullMQ
+    username: url.username || undefined,
+    maxRetriesPerRequest: null,
   };
-} 
-// Scenario 2: Local Development (You provide Host/Port)
-else {
+
+  // If the URL uses TLS (e.g. rediss://...) enable tls option for ioredis/BullMQ.
+  // BullMQ's ConnectionOptions doesn't include `tls` in its type, so we cast to any.
+  if (url.protocol === 'rediss:') {
+    // Some hosted Redis instances require TLS. Provide an empty tls object to enable it.
+    // If you get certificate issues, you can set { rejectUnauthorized: false } temporarily.
+    (base as any).tls = {};
+  }
+
+  redisConnection = base;
+} else {
+  // Local development fallback
   redisConnection = {
     host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    maxRetriesPerRequest: null, // Required by BullMQ
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    maxRetriesPerRequest: null,
   };
 }
 
