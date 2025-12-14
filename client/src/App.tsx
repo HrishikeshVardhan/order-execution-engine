@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Activity, 
@@ -9,16 +9,21 @@ import {
   Send,
   Layers,
   Zap,
-  Hammer, // New Icon for "Building"
-  FileCode
+  Hammer
 } from 'lucide-react';
+
+// --- Configuration ---
+// 1. Get API URL from Environment or default to localhost for development
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+// 2. Automatically generate WebSocket URL (http -> ws, https -> wss)
+const WS_URL = API_URL.replace('http', 'ws');
 
 // --- Types ---
 interface Order {
   id: string;
   amount: number;
   side: string;
-  // Added 'BUILDING' to the allowed statuses
   status: 'PENDING' | 'ROUTING' | 'BUILDING' | 'SUBMITTED' | 'CONFIRMED' | 'FAILED';
   dex?: string;
   price?: number;
@@ -27,11 +32,10 @@ interface Order {
   createdAt: number;
 }
 
-// --- Status Pipeline Configuration ---
 const STEPS = [
   { id: 'PENDING', label: 'Queued', icon: Layers },
   { id: 'ROUTING', label: 'Routing', icon: Search },
-  { id: 'BUILDING', label: 'Building', icon: Hammer }, // New Visual Step
+  { id: 'BUILDING', label: 'Building', icon: Hammer },
   { id: 'SUBMITTED', label: 'Submitted', icon: Send },
   { id: 'CONFIRMED', label: 'Settled', icon: CheckCircle2 },
 ];
@@ -42,24 +46,20 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const activeConnections = useRef<Set<string>>(new Set());
 
-  // --- Metrics Calculation ---
   const metrics = useMemo(() => {
     return {
       queued: orders.filter(o => o.status === 'PENDING').length,
-      // Include BUILDING in the processing count
       processing: orders.filter(o => ['ROUTING', 'BUILDING', 'SUBMITTED'].includes(o.status)).length,
       completed: orders.filter(o => o.status === 'CONFIRMED').length,
     };
   }, [orders]);
 
-  // --- Submit Single Order ---
   const executeOrder = async () => {
     setIsSubmitting(true);
     await submitSingleOrder();
     setIsSubmitting(false);
   };
 
-  // --- Submit Batch ---
   const executeBatch = async () => {
     setIsSubmitting(true);
     const promises = Array(5).fill(0).map(() => submitSingleOrder());
@@ -69,7 +69,8 @@ function App() {
 
   const submitSingleOrder = async () => {
     try {
-      const res = await axios.post('http://localhost:3000/api/orders', {
+      // ✅ CHANGED: Use dynamic API_URL instead of localhost
+      const res = await axios.post(`${API_URL}/api/orders`, {
         token: 'SOL',
         amount: Number(amount),
         side: 'buy'
@@ -78,7 +79,8 @@ function App() {
       createLocalOrder(orderId);
       connectWebSocket(orderId);
     } catch (err) {
-      console.error(err);
+      console.error("Order Failed:", err);
+      alert("Failed to place order. Check console.");
     }
   };
 
@@ -98,17 +100,21 @@ function App() {
     if (activeConnections.current.has(orderId)) return;
     activeConnections.current.add(orderId);
 
-    const ws = new WebSocket(`ws://localhost:3000/ws/orders/${orderId}`);
+    // ✅ CHANGED: Use dynamic WS_URL (wss:// in production)
+    const ws = new WebSocket(`${WS_URL}/ws/orders/${orderId}`);
+
+    ws.onopen = () => {
+        console.log(`Connected to WS for ${orderId}`);
+    };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       setOrders(prev => prev.map(o => {
         if (o.id !== orderId) return o;
         
-        // --- Updated Log Logic for all 6 Steps ---
         let logMsg = `Status: ${data.status}`;
         if (data.status === 'ROUTING') logMsg = 'Worker picked up job. Scanning DEXs...';
-        if (data.status === 'BUILDING') logMsg = 'Constructing Solana Transaction...'; // New Log
+        if (data.status === 'BUILDING') logMsg = 'Constructing Solana Transaction...';
         if (data.status === 'SUBMITTED') logMsg = `Route selected: ${data.dex} @ $${data.price}. Tx Sent.`;
         if (data.status === 'CONFIRMED') logMsg = `Transaction confirmed on Solana`;
         if (data.status === 'FAILED') logMsg = `❌ Failed: ${data.error}`;
@@ -125,12 +131,16 @@ function App() {
 
       if (['CONFIRMED', 'FAILED'].includes(data.status)) {
         activeConnections.current.delete(orderId);
-        ws.close();
+        // Small delay to ensure UI updates before closing
+        setTimeout(() => ws.close(), 1000);
       }
+    };
+    
+    ws.onerror = (e) => {
+        console.error("WebSocket Error:", e);
     };
   };
 
-  // --- Updated Logic to handle 5 Steps ---
   const getStepState = (currentStatus: string, stepId: string) => {
     const statusOrder = ['PENDING', 'ROUTING', 'BUILDING', 'SUBMITTED', 'CONFIRMED'];
     const currentIndex = statusOrder.indexOf(currentStatus);
@@ -142,6 +152,8 @@ function App() {
     return 'inactive';
   };
 
+  // ... (Render Logic remains the same, omitted for brevity)
+  // PASTE YOUR RENDER LOGIC (RETURN STATEMENT) HERE
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -218,10 +230,10 @@ function App() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-mono text-xs text-slate-500">ID: {order.id.split('-')[0]}...</span>
                       {order.dex && (
-                         <span className="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-0.5 rounded border border-blue-500/20 font-bold uppercase">
-                           {order.dex}
-                         </span>
-                       )}
+                          <span className="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-0.5 rounded border border-blue-500/20 font-bold uppercase">
+                            {order.dex}
+                          </span>
+                        )}
                     </div>
                     <div className="text-lg font-bold text-slate-200">
                       Buy {order.amount} SOL 
@@ -253,8 +265,6 @@ function App() {
                          `}>
                            <step.icon size={14} />
                          </div>
-                         {/* Optional Label for Steps */}
-                         {/* <span className="text-[10px] mt-1 text-slate-600 uppercase">{step.label}</span> */}
                        </div>
                      );
                    })}
