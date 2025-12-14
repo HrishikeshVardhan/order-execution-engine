@@ -4,7 +4,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const url = new URL(process.env.REDIS_URL!);
+
 export const redisConnection: ConnectionOptions = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
+  host: url.hostname,
+  port: parseInt(url.port || '6379'),
+  password: url.password || undefined,
 };
